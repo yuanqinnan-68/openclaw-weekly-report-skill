@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{week_title}}</title>
+  <style>
+    body { margin:0; background:#f8f9fc; color:#1e293b; font:14px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    .document { max-width:840px; margin:auto; padding:36px 24px; }
+    .card,.project-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin:0 0 20px; }
+    .highlights { white-space:pre-line; background:#f0fdf4; color:#166534; }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    th,td { padding:9px 12px; border:1px solid #e5e7eb; text-align:left; vertical-align:top; white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
+    th { background:#fafbfd; color:#64748b; }
+    .owner-cell,.status-cell { text-align:center; }
+    .tag { display:inline-block; min-width:22px; padding:2px 5px; border-radius:5px; text-align:center; white-space:nowrap; }
+    .done{background:#dcfce7}.stuck{background:#fee2e2}.debug{background:#fef3c7}.docking{background:#ffedd5}.design{background:#ede9fe}.doing{background:#dbeafe}.todo{background:#f3f4f6}
+    @media (max-width:640px) { .document{padding:20px 8px} th,td{padding:7px 5px;font-size:12px} }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <h1>{{week_title}}</h1>
+    <section class="card highlights">{{highlights}}</section>
+    <section class="card">{{risks}}</section>
+    <section>{{projects}}</section>
+    <section class="card">{{next_focus}}</section>
+  </main>
+</body>
+</html>

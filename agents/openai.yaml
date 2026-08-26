@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenClaw 周报总结"
+  short_description: "把飞书任务整理成简洁完整且按状态排序的邮件周报"
+  default_prompt: "Use $openclaw-weekly-report to optimize the weekly report summarization and email output."
