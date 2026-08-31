@@ -44,6 +44,15 @@ describe("owner contribution summaries", () => {
     expect(rows.map((row) => row.id)).toEqual(["same", "same#2"]);
   });
 
+  it("avoids collisions with an existing suffixed id", () => {
+    const rows = normalizeSourceRows([
+      { id: "same", taskName: "任务一" },
+      { id: "same", taskName: "任务二" },
+      { id: "same#2", taskName: "任务三" },
+    ]);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(3);
+  });
+
   it("renders member contributions immediately after highlights", () => {
     const html = renderWeeklyReport("<main>{{highlights}}{{owner_summaries}}{{risks}}{{projects}}{{next_focus}}</main>", {
       weekTitle: "周报",

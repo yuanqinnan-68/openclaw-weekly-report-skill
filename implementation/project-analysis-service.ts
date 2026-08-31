@@ -45,14 +45,15 @@ export function cleanSourceText(value: unknown): string {
 
 /** Every source row receives a unique ID. Similar or identical rows remain separate. */
 export function normalizeSourceRows(rows: Array<Partial<SourceTask>>): SourceTask[] {
-  const idCounts = new Map<string, number>();
-  return rows.map((row, sourceIndex) => ({
-    id: (() => {
-      const base = cleanSourceText(row.id) || `row-${sourceIndex}`;
-      const count = (idCounts.get(base) || 0) + 1;
-      idCounts.set(base, count);
-      return count === 1 ? base : `${base}#${count}`;
-    })(),
+  const usedIds = new Set<string>();
+  return rows.map((row, sourceIndex) => {
+    const base = cleanSourceText(row.id) || `row-${sourceIndex}`;
+    let id = base;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${base}#${suffix++}`;
+    usedIds.add(id);
+    return {
+    id,
     project: cleanSourceText(row.project) || "未分类",
     taskName: cleanSourceText(row.taskName),
     owner: cleanSourceText(row.owner),
@@ -62,7 +63,8 @@ export function normalizeSourceRows(rows: Array<Partial<SourceTask>>): SourceTas
     nextPlan: cleanSourceText(row.nextPlan),
     risk: cleanSourceText(row.risk),
     sourceIndex,
-  }));
+    };
+  });
 }
 
 export function buildRefinementPrompt(rows: SourceTask[]): string {
