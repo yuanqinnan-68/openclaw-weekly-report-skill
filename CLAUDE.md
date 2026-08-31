@@ -29,7 +29,7 @@ Key design rules enforced in code:
 - `normalizeSourceRows` assigns a stable `id` to every row; identical rows are never merged.
 - `applyRefinement` aligns model output back to source rows by `id` and falls back to original text when the model output is missing, too long, or contains step lists / ellipses.
 - `stableSortByStatus` in the renderer applies the fixed status order (`done → stuck → debug → docking → design → doing → todo`) while preserving original order within the same status.
-- Highlights are selected only from `已完成` rows outside `下周规划` period, capped at 5.
+- Highlights are a team-level scan: `已完成` rows outside `下周规划`, capped at 5, at most one per owner, preferring diverse work types and projects. Owner coverage belongs to per-member summaries, not highlights.
 
 ## Editing guidelines
 
@@ -45,7 +45,7 @@ Run mentally (or with a test harness) against the checklist in `references/repor
 1. Output row count equals input row count.
 2. Every input `id` appears exactly once in output.
 3. Empty fields remain empty strings (not `"暂无"`).
-4. Highlights ≤ 5, all from `已完成` tasks.
+4. Highlights ≤ 5, all from `已完成` tasks, at most one per owner.
 5. Each project table uses the unified status order.
 6. No ellipses, truncated sentences, JSON fragments, or Markdown fences in HTML output.
 

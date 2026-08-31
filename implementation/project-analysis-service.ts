@@ -113,19 +113,71 @@ export function applyRefinement(rows: SourceTask[], modelItems: unknown): Report
   });
 }
 
+type HighlightKind = "delivery" | "design" | "research" | "collab" | "ops" | "process" | "other";
+
+function highlightKind(row: SourceTask): HighlightKind {
+  const text = `${row.taskName} ${row.progress}`;
+  if (/(上线|发布|交付|合入|投产)/.test(text)) return "delivery";
+  if (/(设计|评审|方案|原型|视觉)/.test(text)) return "design";
+  if (/(调研|对比|分析|实验|竞品)/.test(text)) return "research";
+  if (/(对接|沟通|对齐|协同|会议)/.test(text)) return "collab";
+  if (/(修复|故障|排查|回滚|告警|bug)/i.test(text)) return "ops";
+  if (/(流程|规范|文档|基建|模板)/.test(text)) return "process";
+  return "other";
+}
+
+/** Cap length and penalize step lists so process dumps do not outrank shorter results. */
+function highlightRankScore(row: SourceTask): number {
+  const text = row.progress || row.taskName;
+  const processDump = /(?:^|[\n；;])\s*\d+[、.．)）]/.test(text);
+  return Math.min(text.length, 60) + (/\d/.test(text) ? 8 : 0) + (processDump ? -25 : 0);
+}
+
+/**
+ * Team-level highlights: pick results, not a per-person roster.
+ * Owner coverage belongs to owner summaries. Same owner at most once.
+ */
 export function selectHighlightCandidates(rows: SourceTask[], limit = 5): SourceTask[] {
-  return rows
+  const candidates = rows
     .filter((row) => row.period !== "下周规划" && row.status.includes("已完成"))
     .filter((row) => Boolean(row.progress || row.taskName))
-    .map((row, originalIndex) => ({ row, originalIndex }))
-    .sort((a, b) => (b.row.progress.length - a.row.progress.length) || (a.originalIndex - b.originalIndex))
-    .slice(0, limit)
-    .map(({ row }) => row);
+    .slice()
+    .sort((a, b) => highlightRankScore(b) - highlightRankScore(a) || a.sourceIndex - b.sourceIndex);
+
+  const selected: SourceTask[] = [];
+  const usedIds = new Set<string>();
+  const usedOwners = new Set<string>();
+  const usedKinds = new Set<HighlightKind>();
+  const usedProjects = new Set<string>();
+
+  const take = (pred: (row: SourceTask) => boolean): boolean => {
+    const next = candidates.find((row) =>
+      !usedIds.has(row.id) && !usedOwners.has(row.owner) && pred(row)
+    );
+    if (!next) return false;
+    usedIds.add(next.id);
+    usedOwners.add(next.owner);
+    usedKinds.add(highlightKind(next));
+    usedProjects.add(next.project);
+    selected.push(next);
+    return true;
+  };
+
+  while (selected.length < limit) {
+    const progressed =
+      take((row) => !usedKinds.has(highlightKind(row)) && !usedProjects.has(row.project))
+      || take((row) => !usedKinds.has(highlightKind(row)))
+      || take((row) => !usedProjects.has(row.project))
+      || take(() => true);
+    if (!progressed) break;
+  }
+
+  return selected;
 }
 
 export function buildHighlightPrompt(row: SourceTask): string {
   const source = `${row.project ? `${row.project}：` : ""}${row.taskName}。${row.progress}`;
-  return `请把下面一条已完成任务整理成一句简短的周报亮点，约30-60字。只保留项目、关键动作和结果，删除过程清单与重复细节，不要逐字抄写，不要编造事实，不要省略号，不要编号，只返回一句完整中文。\n${source}`;
+  return `请把下面一条已完成任务整理成一句简短的周报亮点，约30-60字。这是团队速览，不是全员名单。亮点不限于上线或发布：设计结论、调研发现、协作推进、排障修复、流程改进只要有结果都要写出来，不要改写成同一种「交付上线」口吻。只保留项目、关键动作和结果，删除过程清单与重复细节，不要逐字抄写，不要编造事实，不要省略号，不要编号，只返回一句完整中文。\n${source}`;
 }
 
 export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]> {
@@ -144,7 +196,7 @@ export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]>
 
 export function buildOwnerSummaryPrompt(owner: string, tasks: SourceTask[]): string {
   const items = tasks.map((t) => `- ${t.taskName}：${t.progress || t.taskName}`).join("\n");
-  return `请把下面这位成员本周的工作整理成一句简洁的中文总结，约20-40字，只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
+  return `请把下面这位成员本周的工作整理成一句简洁的中文概述，约20-40字。这是全员覆盖的工作摘要，不是亮点榜，不要拔高，也不要只挑最好看的一项。只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
 }
 
 export function statusTag(status: string): StatusTag {
