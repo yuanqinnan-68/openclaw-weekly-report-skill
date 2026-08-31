@@ -7,8 +7,9 @@
   <style>
     body { margin:0; background:#f8f9fc; color:#1e293b; font:14px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
     .document { max-width:840px; margin:auto; padding:36px 24px; }
-    .card,.project-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin:0 0 20px; }
+    .card,.project-card,.owner-summaries { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin:0 0 20px; }
     .highlights { white-space:pre-line; background:#f0fdf4; color:#166534; }
+    .owner-name { text-align:center; font-weight:600; }
     table { width:100%; border-collapse:collapse; table-layout:fixed; }
     th,td { padding:9px 12px; border:1px solid #e5e7eb; text-align:left; vertical-align:top; white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
     th { background:#fafbfd; color:#64748b; }
@@ -22,7 +23,7 @@
   <main class="document">
     <h1>{{week_title}}</h1>
     <section class="card highlights">{{highlights}}</section>
-    <section class="card owner-summaries">{{owner_summaries}}</section>
+    {{owner_summaries}}
     <section class="card">{{risks}}</section>
     <section>{{projects}}</section>
     <section class="card">{{next_focus}}</section>

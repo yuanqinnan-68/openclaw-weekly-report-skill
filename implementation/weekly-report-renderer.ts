@@ -1,7 +1,7 @@
-import type { ReportTaskRow, StatusTag } from "./project-analysis-service.js";
+import type { OwnerSummary, ReportTaskRow, StatusTag } from "./project-analysis-service.js";
 
+export type { OwnerSummary };
 export interface ProjectBlock { projectName: string; tasks: ReportTaskRow[]; }
-export interface OwnerSummary { owner: string; summary: string; }
 export interface WeeklyReportData {
   weekTitle: string;
   highlights: string[];
@@ -44,7 +44,7 @@ export function renderOwnerSummaries(summaries: OwnerSummary[]): string {
   const rows = summaries
     .map((s) => `<tr><td class="owner-name">${escapeHtml(s.owner)}</td><td>${escapeHtml(s.summary)}</td></tr>`)
     .join("\n");
-  return `<section class="owner-summaries">
+  return `<section class="card owner-summaries">
   <h2>成员贡献</h2>
   <table>
     <thead><tr><th>成员</th><th>本周工作</th></tr></thead>

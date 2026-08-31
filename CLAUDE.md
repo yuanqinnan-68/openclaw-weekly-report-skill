@@ -20,8 +20,8 @@ The end-to-end flow is owned by a **Bridge** (not in this repo) that calls one s
 generate_weekly_report (openclaw-tool.ts)
   └── Bridge
         ├── Feishu sync  →  database
-        ├── project-analysis-service.ts   (normalize → AI refine → validate → highlight)
-        ├── weekly-report-renderer.ts     (stable status sort → HTML)
+        ├── project-analysis-service.ts   (normalize → AI refine → validate → highlight → owner summaries)
+        ├── weekly-report-renderer.ts     (stable status sort → fill template, including owner summaries)
         └── SMTP send
 ```
 
@@ -30,6 +30,7 @@ Key design rules enforced in code:
 - `applyRefinement` aligns model output back to source rows by `id` and falls back to original text when the model output is missing, too long, or contains step lists / ellipses.
 - `stableSortByStatus` in the renderer applies the fixed status order (`done → stuck → debug → docking → design → doing → todo`) while preserving original order within the same status.
 - Highlights are a team-level scan: `已完成` rows outside `下周规划`, capped at 5, at most one per owner, preferring diverse work types and projects. Owner coverage belongs to per-member summaries, not highlights.
+- `applyOwnerSummaries` aligns model output by `owner` and falls back to concatenated source progress (empty string if source is empty); `renderWeeklyReport` inserts `{{owner_summaries}}` via `renderOwnerSummaries`.
 
 ## Editing guidelines
 
@@ -46,7 +47,9 @@ Run mentally (or with a test harness) against the checklist in `references/repor
 2. Every input `id` appears exactly once in output.
 3. Empty fields remain empty strings (not `"暂无"`).
 4. Highlights ≤ 5, all from `已完成` tasks, at most one per owner.
-5. Each project table uses the unified status order.
-6. No ellipses, truncated sentences, JSON fragments, or Markdown fences in HTML output.
+5. Every this-week owner appears once in owner summaries; invalid model text falls back to source.
+6. HTML includes filled `{{owner_summaries}}` (not the raw placeholder).
+7. Each project table uses the unified status order.
+8. No ellipses, truncated sentences, JSON fragments, or Markdown fences in HTML output.
 
 Do not send real emails during automated validation — use a no-send generation check only.

@@ -24,6 +24,12 @@ describe("owner contribution summaries", () => {
     expect(summaries).toEqual([{ owner: "张三", summary: "定位问题" }]);
   });
 
+  it("falls back to empty string instead of inventing a placeholder", () => {
+    const rows = normalizeSourceRows([{ id: "1", owner: "张三", taskName: "", progress: "" }]);
+    const summaries = applyOwnerSummaries(new Map([["张三", rows]]), []);
+    expect(summaries).toEqual([{ owner: "张三", summary: "" }]);
+  });
+
   it("renders member contributions immediately after highlights", () => {
     const html = renderWeeklyReport("<main>{{highlights}}{{owner_summaries}}{{risks}}{{projects}}{{next_focus}}</main>", {
       weekTitle: "周报",

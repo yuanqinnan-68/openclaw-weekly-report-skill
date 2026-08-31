@@ -28,6 +28,11 @@ export interface ReportTaskRow extends SourceTask, RefinedTaskText {
   statusIcon: string;
 }
 
+export interface OwnerSummary {
+  owner: string;
+  summary: string;
+}
+
 export type StatusTag = "done" | "stuck" | "debug" | "docking" | "design" | "doing" | "todo";
 
 export function cleanSourceText(value: unknown): string {
@@ -181,8 +186,6 @@ export function buildHighlightPrompt(row: SourceTask): string {
   return `请把下面一条已完成任务整理成一句简短的周报亮点，约30-60字。这是团队速览，不是全员名单。亮点不限于上线或发布：设计结论、调研发现、协作推进、排障修复、流程改进只要有结果都要写出来，不要改写成同一种「交付上线」口吻。只保留项目、关键动作和结果，删除过程清单与重复细节，不要逐字抄写，不要编造事实，不要省略号，不要编号，只返回一句完整中文。\n${source}`;
 }
 
-export interface OwnerSummary { owner: string; summary: string; }
-
 export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]> {
   const map = new Map<string, SourceTask[]>();
   for (const row of rows) {
@@ -198,9 +201,16 @@ export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]>
   return map;
 }
 
+export function fallbackOwnerSummary(tasks: SourceTask[]): string {
+  return tasks
+    .map((task) => cleanSourceText(task.progress) || cleanSourceText(task.taskName))
+    .filter(Boolean)
+    .join("；");
+}
+
 export function buildOwnerSummaryPrompt(owner: string, tasks: SourceTask[]): string {
   const items = tasks.map((t) => `- 任务：${t.taskName}\n  状态：${t.status}\n  本周进展：${t.progress}\n  风险：${t.risk}\n  下周计划：${t.nextPlan}`).join("\n");
-  return `请把下面这位成员本周的工作整理成一句简洁的中文概述，约20-40字。这是全员覆盖的工作摘要，不是亮点榜，不要拔高，也不要只挑最好看的一项。只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
+  return `请把下面这位成员本周的工作整理成一句简洁的中文概述，约20-40字。这是全员覆盖的工作摘要，不是亮点榜，不要拔高，也不要只挑最好看的一项。必须结合每条任务的状态：已完成说结果，推进中说进展，卡住如实写阻塞，不要把未完成写成已完成。只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
 }
 
 /** Prepare one model request per owner; callers can execute these requests in their AI adapter. */
@@ -209,8 +219,7 @@ export function buildOwnerSummaryRequests(groups: Map<string, SourceTask[]>): Ar
 }
 
 function ownerSummaryInvalid(text: string): boolean {
-  return !text || text.length > 60 || text.includes("…") || text.includes("...")
-    || /(?:^|[\n；;])\s*\d+[、.．)）]/.test(text) || /```|\{\s*"/.test(text);
+  return !text || text.length > 60 || containsInvalidText(text) || /```|\{\s*"/.test(text);
 }
 
 /** Align model summaries to every owner and use complete source text on malformed output. */
@@ -223,9 +232,8 @@ export function applyOwnerSummaries(groups: Map<string, SourceTask[]>, modelItem
     }
   }
   return [...groups.entries()].map(([owner, tasks]) => {
-    const fallback = tasks.map((t) => t.progress || t.taskName).find(Boolean) || "本周参与任务推进";
     const summary = byOwner.get(owner) || "";
-    return { owner, summary: ownerSummaryInvalid(summary) ? cleanSourceText(fallback) : summary };
+    return { owner, summary: ownerSummaryInvalid(summary) ? fallbackOwnerSummary(tasks) : summary };
   });
 }
 
