@@ -30,6 +30,20 @@ describe("owner contribution summaries", () => {
     expect(summaries).toEqual([{ owner: "张三", summary: "" }]);
   });
 
+  it("keeps owner summary blank when progress is blank", () => {
+    const rows = normalizeSourceRows([{ id: "1", owner: "张三", taskName: "接口排障", progress: "" }]);
+    const summaries = applyOwnerSummaries(new Map([["张三", rows]]), [{ owner: "张三", summary: "…" }]);
+    expect(summaries).toEqual([{ owner: "张三", summary: "" }]);
+  });
+
+  it("makes duplicate source ids unique for row alignment", () => {
+    const rows = normalizeSourceRows([
+      { id: "same", owner: "甲", taskName: "任务一" },
+      { id: "same", owner: "乙", taskName: "任务二" },
+    ]);
+    expect(rows.map((row) => row.id)).toEqual(["same", "same#2"]);
+  });
+
   it("renders member contributions immediately after highlights", () => {
     const html = renderWeeklyReport("<main>{{highlights}}{{owner_summaries}}{{risks}}{{projects}}{{next_focus}}</main>", {
       weekTitle: "周报",

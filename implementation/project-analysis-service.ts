@@ -45,8 +45,14 @@ export function cleanSourceText(value: unknown): string {
 
 /** Every source row receives a unique ID. Similar or identical rows remain separate. */
 export function normalizeSourceRows(rows: Array<Partial<SourceTask>>): SourceTask[] {
+  const idCounts = new Map<string, number>();
   return rows.map((row, sourceIndex) => ({
-    id: cleanSourceText(row.id) || `row-${sourceIndex}`,
+    id: (() => {
+      const base = cleanSourceText(row.id) || `row-${sourceIndex}`;
+      const count = (idCounts.get(base) || 0) + 1;
+      idCounts.set(base, count);
+      return count === 1 ? base : `${base}#${count}`;
+    })(),
     project: cleanSourceText(row.project) || "未分类",
     taskName: cleanSourceText(row.taskName),
     owner: cleanSourceText(row.owner),
@@ -203,7 +209,7 @@ export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]>
 
 export function fallbackOwnerSummary(tasks: SourceTask[]): string {
   return tasks
-    .map((task) => cleanSourceText(task.progress) || cleanSourceText(task.taskName))
+    .map((task) => cleanSourceText(task.progress))
     .filter(Boolean)
     .join("；");
 }
