@@ -128,6 +128,25 @@ export function buildHighlightPrompt(row: SourceTask): string {
   return `请把下面一条已完成任务整理成一句简短的周报亮点，约30-60字。只保留项目、关键动作和结果，删除过程清单与重复细节，不要逐字抄写，不要编造事实，不要省略号，不要编号，只返回一句完整中文。\n${source}`;
 }
 
+export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]> {
+  const map = new Map<string, SourceTask[]>();
+  for (const row of rows) {
+    if (row.period === "下周规划") continue;
+    const bucket = map.get(row.owner);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      map.set(row.owner, [row]);
+    }
+  }
+  return map;
+}
+
+export function buildOwnerSummaryPrompt(owner: string, tasks: SourceTask[]): string {
+  const items = tasks.map((t) => `- ${t.taskName}：${t.progress || t.taskName}`).join("\n");
+  return `请把下面这位成员本周的工作整理成一句简洁的中文总结，约20-40字，只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
+}
+
 export function statusTag(status: string): StatusTag {
   if (status.includes("已完成")) return "done";
   if (status.includes("卡住")) return "stuck";

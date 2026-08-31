@@ -1,9 +1,11 @@
 import type { ReportTaskRow, StatusTag } from "./project-analysis-service.js";
 
 export interface ProjectBlock { projectName: string; tasks: ReportTaskRow[]; }
+export interface OwnerSummary { owner: string; summary: string; }
 export interface WeeklyReportData {
   weekTitle: string;
   highlights: string[];
+  ownerSummaries: OwnerSummary[];
   risks: string[];
   projects: ProjectBlock[];
   nextFocus: string[];
@@ -35,6 +37,20 @@ export function renderProjectRows(project: ProjectBlock): string {
   <td>${escapeHtml(task.progress)}</td>
   <td>${escapeHtml(task.nextPlan)}</td>
 </tr>`).join("\n");
+}
+
+export function renderOwnerSummaries(summaries: OwnerSummary[]): string {
+  if (summaries.length === 0) return "";
+  const rows = summaries
+    .map((s) => `<tr><td class="owner-name">${escapeHtml(s.owner)}</td><td>${escapeHtml(s.summary)}</td></tr>`)
+    .join("\n");
+  return `<section class="owner-summaries">
+  <h2>成员贡献</h2>
+  <table>
+    <thead><tr><th>成员</th><th>本周工作</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</section>`;
 }
 
 export function renderProjects(projects: ProjectBlock[]): string {
