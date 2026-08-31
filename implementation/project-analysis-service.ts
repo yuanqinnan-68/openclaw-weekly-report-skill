@@ -130,7 +130,8 @@ function highlightKind(row: SourceTask): HighlightKind {
 function highlightRankScore(row: SourceTask): number {
   const text = row.progress || row.taskName;
   const processDump = /(?:^|[\n；;])\s*\d+[、.．)）]/.test(text);
-  return Math.min(text.length, 60) + (/\d/.test(text) ? 8 : 0) + (processDump ? -25 : 0);
+  const resultSignal = /(完成|交付|上线|发布|落地|结论|修复|解决|确定|验证|通过|建立|产出|推进)/.test(text) ? 12 : 0;
+  return resultSignal + (/\d/.test(text) ? 2 : 0) + (processDump ? -10 : 0);
 }
 
 /**
@@ -180,10 +181,13 @@ export function buildHighlightPrompt(row: SourceTask): string {
   return `请把下面一条已完成任务整理成一句简短的周报亮点，约30-60字。这是团队速览，不是全员名单。亮点不限于上线或发布：设计结论、调研发现、协作推进、排障修复、流程改进只要有结果都要写出来，不要改写成同一种「交付上线」口吻。只保留项目、关键动作和结果，删除过程清单与重复细节，不要逐字抄写，不要编造事实，不要省略号，不要编号，只返回一句完整中文。\n${source}`;
 }
 
+export interface OwnerSummary { owner: string; summary: string; }
+
 export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]> {
   const map = new Map<string, SourceTask[]>();
   for (const row of rows) {
     if (row.period === "下周规划") continue;
+    if (!row.owner.trim()) continue;
     const bucket = map.get(row.owner);
     if (bucket) {
       bucket.push(row);
@@ -195,8 +199,34 @@ export function groupTasksByOwner(rows: SourceTask[]): Map<string, SourceTask[]>
 }
 
 export function buildOwnerSummaryPrompt(owner: string, tasks: SourceTask[]): string {
-  const items = tasks.map((t) => `- ${t.taskName}：${t.progress || t.taskName}`).join("\n");
+  const items = tasks.map((t) => `- 任务：${t.taskName}\n  状态：${t.status}\n  本周进展：${t.progress}\n  风险：${t.risk}\n  下周计划：${t.nextPlan}`).join("\n");
   return `请把下面这位成员本周的工作整理成一句简洁的中文概述，约20-40字。这是全员覆盖的工作摘要，不是亮点榜，不要拔高，也不要只挑最好看的一项。只说做了什么和关键结果，不要省略号，不要编号，不要编造事实，只返回一句完整中文。\n成员：${owner}\n本周工作：\n${items}`;
+}
+
+/** Prepare one model request per owner; callers can execute these requests in their AI adapter. */
+export function buildOwnerSummaryRequests(groups: Map<string, SourceTask[]>): Array<{ owner: string; prompt: string }> {
+  return [...groups.entries()].map(([owner, tasks]) => ({ owner, prompt: buildOwnerSummaryPrompt(owner, tasks) }));
+}
+
+function ownerSummaryInvalid(text: string): boolean {
+  return !text || text.length > 60 || text.includes("…") || text.includes("...")
+    || /(?:^|[\n；;])\s*\d+[、.．)）]/.test(text) || /```|\{\s*"/.test(text);
+}
+
+/** Align model summaries to every owner and use complete source text on malformed output. */
+export function applyOwnerSummaries(groups: Map<string, SourceTask[]>, modelItems: unknown): OwnerSummary[] {
+  const items = Array.isArray(modelItems) ? modelItems : [];
+  const byOwner = new Map<string, string>();
+  for (const item of items) {
+    if (item && typeof item.owner === "string" && typeof item.summary === "string" && !byOwner.has(item.owner)) {
+      byOwner.set(item.owner, cleanSourceText(item.summary));
+    }
+  }
+  return [...groups.entries()].map(([owner, tasks]) => {
+    const fallback = tasks.map((t) => t.progress || t.taskName).find(Boolean) || "本周参与任务推进";
+    const summary = byOwner.get(owner) || "";
+    return { owner, summary: ownerSummaryInvalid(summary) ? cleanSourceText(fallback) : summary };
+  });
 }
 
 export function statusTag(status: string): StatusTag {

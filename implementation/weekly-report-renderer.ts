@@ -63,6 +63,17 @@ export function renderProjects(projects: ProjectBlock[]): string {
 </section>`).join("\n");
 }
 
+export function renderWeeklyReport(template: string, data: WeeklyReportData): string {
+  let html = template;
+  html = html.replaceAll("{{week_title}}", escapeHtml(data.weekTitle));
+  html = html.replaceAll("{{highlights}}", escapeHtml(data.highlights.join("\n")));
+  html = html.replaceAll("{{owner_summaries}}", renderOwnerSummaries(data.ownerSummaries));
+  html = html.replaceAll("{{risks}}", escapeHtml(data.risks.join("\n")));
+  html = html.replaceAll("{{projects}}", renderProjects(data.projects));
+  html = html.replaceAll("{{next_focus}}", data.nextFocus.map((x) => `<li>${escapeHtml(x)}</li>`).join("\n"));
+  return html;
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
